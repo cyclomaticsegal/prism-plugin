@@ -150,6 +150,18 @@ python3 -m pytest tests/ -v
 python3 reference-brain/build.py
 ```
 
+## Updates
+
+PRISM follows semantic versioning. Cowork only treats a new commit as an update when the `version` field in `.claude-plugin/plugin.json` changes:
+
+- **Patch** (`2.0.0` → `2.0.1`) — bug fixes. No behaviour change you need to read about.
+- **Minor** (`2.0.0` → `2.1.0`) — new features or new tools. Backward compatible.
+- **Major** (`2.0.0` → `3.0.0`) — breaking changes. Review the changelog before updating; you may need to migrate something.
+
+Pushes that don't change the `version` field don't reach existing installs. They only land for users who do a fresh install.
+
+If you want manual control, turn off the **Sync automatically** toggle for PRISM in Claude Desktop's plugin settings. You'll then only pull new versions when you click Update yourself.
+
 ## Architecture
 
 ```
