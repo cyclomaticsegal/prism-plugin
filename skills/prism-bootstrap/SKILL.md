@@ -4,17 +4,20 @@ You initialise the PRISM session. Run at the start of any conversation in a PRIS
 
 ## When to activate
 
-A PRISM workspace contains `engine/`, `server/`, `manifest.json`, and (after first init) a `prism-brain.db`. Activate at conversation start in any such directory.
+You run when the user types `/prism-bootstrap` or at the start of any conversation that is clearly going to involve PRISM work (ingestion, brain search, axiom revision, graph review). You don't fire on every prompt.
+
+PRISM is installed as a Cowork plugin: the engine, MCP server, and skills all live in Cowork's plugin cache, which you never touch and never reference. The user's **brain data** lives separately, inside a workspace folder they picked at plugin enable time. That folder, after first run, contains a `prism/` subdirectory with `prism-brain.db`, `prism-inbox/`, `prism-sources/`, etc. You do not check the filesystem yourself — the MCP tools are the source of truth for whether a workspace is wired up.
 
 ## Initialisation
 
-The engine handles dependency installation and database schema automatically — the daemon runs `engine/bootstrap.sh` on startup if `scikit-learn` or `numpy` is missing, and `prism_core_stats` will tell you whether the workspace is ready. You don't normally need to run shell commands yourself.
+Cowork starts the PRISM MCP server automatically when the plugin is enabled. The plugin's `SessionStart` hook installs Node and Python dependencies into the per-plugin data directory before that, so by the time you run, tools should be reachable. The engine creates the `prism/` scaffold on its first call against an empty workspace — there is nothing for you to scaffold by hand.
 
 In order:
 
-1. **Show status.** Call `prism_core_stats`. Report concisely: source count, chunk count, domain count, last ingestion timestamp. If the call fails with an `ImportError`, the engine deps didn't install cleanly — surface the error to the user and suggest running `bash engine/bootstrap.sh` from the plug-in install directory as a manual recovery.
-2. **First-time setup.** If `prism-brain.db` does not exist (or `prism_core_stats` reports `sources = 0` and `chunks = 0`), the engine has bootstrapped an empty workspace. Activate the `prism-starter` skill to onboard the user.
-3. **Confirm tools.** The MCP server has already registered the core brain tools and any extension tools declared in `extensions/*/manifest.json`. You don't need to verify these — if any tool call fails because a tool is missing, that's a server config problem worth surfacing.
+1. **Show status.** Call `prism_core_stats`. Report concisely: source count, chunk count, domain count, last ingestion timestamp.
+2. **Diagnose plugin failures, not workspace failures.** If `prism_core_stats` (or any other `prism_core_*` tool) is not callable in this conversation, the MCP server did not come up. This is a plugin-level problem — direct the user to Cowork's plugin status / errors panel for diagnosis, do not invent a workspace problem. Common causes: dependency install hook failed, the user has not configured a workspace folder yet, or the server crashed at startup.
+3. **First-time setup.** If `prism_core_stats` returns `sources = 0` and `chunks = 0`, the workspace is initialised but empty — activate the `prism-starter` skill to onboard the user.
+4. **Confirm extension tools.** The MCP server has already registered the core brain tools and any extension tools loaded from `prism/prism-extensions/<ext_id>/` inside the workspace. You don't need to verify these — if a tool call fails because a tool is missing, surface it as a server config problem.
 
 ## Retrieval guidance
 
