@@ -18,8 +18,15 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENGINE_DIR = join(__dirname, "..", "engine");
 const BRIDGE = join(ENGINE_DIR, "bridge.py");
 
-const WORKSPACE =
-  process.env.PRISM_WORKSPACE || join(__dirname, "..");
+// Resolve the workspace folder — this is where the user's brain data
+// (prism/prism-brain.db, prism/prism-inbox/, etc.) lives. PRISM does
+// not own this directory; it's whichever folder the user happens to
+// have Cowork rooted in for the current session. PRISM_WORKSPACE wins
+// if explicitly set; otherwise we fall back to the MCP server's spawn
+// cwd, which Cowork sets to the session's working folder. This is what
+// makes "one plugin, N independent brains" work: open Cowork against a
+// different folder, get a different brain.
+const WORKSPACE = process.env.PRISM_WORKSPACE || process.cwd();
 
 // Python interpreter for the engine. The plugin's SessionStart hook
 // installs the engine into ${CLAUDE_PLUGIN_DATA}/venv and points

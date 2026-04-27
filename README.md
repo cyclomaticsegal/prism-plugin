@@ -49,7 +49,7 @@ This repository is itself a one-plugin marketplace named `cyclomaticsegal`. From
 /plugin install prism@cyclomaticsegal
 ```
 
-Cowork prompts you for a workspace folder when the plugin first runs — that's where your brain will live. Pick an empty folder or create a new one.
+Your **workspace folder is whichever folder Cowork is rooted in for the current session.** PRISM does not ask you to pick one — it uses the session's working directory and creates a `prism/` subfolder inside it on first ingest. To start a new brain, just open Cowork against a different folder; to come back to an existing one, open Cowork against its folder. One plugin, N independent brains.
 
 To begin using PRISM, drop something into `prism/prism-inbox/` and ask Claude to ingest it.
 
