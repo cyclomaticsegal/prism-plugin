@@ -1,0 +1,17 @@
+{
+  "name": "cyclomaticsegal",
+  "owner": {
+    "name": "Simon Segal"
+  },
+  "metadata": {
+    "description": "Plugins authored by Simon Segal."
+  },
+  "plugins": [
+    {
+      "name": "prism",
+      "source": "./",
+      "description": "PRISM — A personal knowledge base with hybrid search, knowledge graph, and interactive explorer.",
+      "category": "knowledge"
+    }
+  ]
+}

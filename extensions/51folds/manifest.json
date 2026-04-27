@@ -1,0 +1,55 @@
+{
+  "name": "folds",
+  "version": "1.1.0",
+  "description": "Real 51Folds API integration — refines a thesis using brain context, submits to api.51folds.ai, polls for completion, and ingests model results back into the brain as a new source wired to relevant concepts. Lean v1: dud detection and monitor view tracked as deferred GitHub issues.",
+  "tools": [
+    {
+      "name": "refine_thesis",
+      "handler": "refineThesis",
+      "description": "Pull brain context relevant to a thesis; return the structured payload Claude refines with the user before submission. Registered as prism_folds_refine_thesis."
+    },
+    {
+      "name": "create",
+      "handler": "create",
+      "description": "Submit a refined thesis to the 51Folds API and register the model in prism-brain.db. Registered as prism_folds_create."
+    },
+    {
+      "name": "status",
+      "handler": "status",
+      "description": "Poll the platform for one or all registered prediction models. Registered as prism_folds_status."
+    },
+    {
+      "name": "ingest_results",
+      "handler": "ingestResults",
+      "description": "Fetch completed results, ingest the narrative as a brain source, wire edges to related concepts. Registered as prism_folds_ingest_results."
+    }
+  ],
+  "node_types": ["prediction"],
+  "edge_types": ["quantifies"],
+  "requires": [
+    "search",
+    "addNode",
+    "addEdge",
+    "getGraphData",
+    "exportGraph",
+    "stats",
+    "predictionSave",
+    "predictionUpdate",
+    "predictionList",
+    "ingestText"
+  ],
+  "env": {
+    "PRISM_FOLDS_API_TOKEN": {
+      "required": true,
+      "description": "Bearer token for the 51Folds API. See .env.example."
+    },
+    "PRISM_FOLDS_API_URL": {
+      "required": false,
+      "default": "https://api.51folds.ai"
+    },
+    "PRISM_FOLDS_PLATFORM_URL": {
+      "required": false,
+      "default": "https://app.51folds.ai"
+    }
+  }
+}

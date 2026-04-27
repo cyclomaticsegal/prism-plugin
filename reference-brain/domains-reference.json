@@ -1,0 +1,58 @@
+[
+  {
+    "id": 1,
+    "label": "Economics & Political Economy",
+    "short_label": "Economics",
+    "color": "#4ecdc4",
+    "keywords": "economics political economy wealth production labour division value price rent wages profits capital accumulation trade commerce markets supply demand money currency exchange commodities manufacture agriculture industry population growth resources scarcity distribution property taxation fiscal policy mercantilism free trade comparative advantage"
+  },
+  {
+    "id": 2,
+    "label": "Philosophy of Knowledge",
+    "short_label": "Epistemology",
+    "color": "#a66cff",
+    "keywords": "philosophy epistemology knowledge reason understanding truth perception sensation ideas innate experience empiricism rationalism scepticism causation induction deduction logic metaphysics ontology reality appearance categories synthetic analytic a priori a posteriori consciousness mind thought certainty doubt method"
+  },
+  {
+    "id": 3,
+    "label": "Governance & Political Theory",
+    "short_label": "Governance",
+    "color": "#e74c3c",
+    "keywords": "governance political theory government state sovereignty power authority constitution republic democracy monarchy tyranny faction liberty freedom rights property social contract consent law legislation representation majority minority separation powers federal republican institutions"
+  },
+  {
+    "id": 4,
+    "label": "Natural Science & Method",
+    "short_label": "Science",
+    "color": "#3498db",
+    "keywords": "science natural philosophy scientific method observation experiment hypothesis theory evidence reasoning induction natural selection evolution species variation adaptation inheritance mechanics motion force gravity laws nature inquiry anatomy physiology circulation blood heart organism biology physics astronomy"
+  },
+  {
+    "id": 5,
+    "label": "Culture, Society & Rights",
+    "short_label": "Culture & Society",
+    "color": "#2ecc71",
+    "keywords": "culture society individual rights equality education slavery abolition freedom expression self-reliance nonconformity simplicity nature civil disobedience women rights gender independence autonomy literacy learning moral improvement human dignity social reform"
+  },
+  {
+    "id": 6,
+    "label": "Innovation & Progress",
+    "short_label": "Innovation",
+    "color": "#45b7d1",
+    "keywords": "innovation progress invention technology improvement efficiency management scientific method applied knowledge wealth creation philanthropy self-improvement industry manufacture systematic organisation productivity labor capital enterprise institution research discovery advancement"
+  },
+  {
+    "id": 7,
+    "label": "Ethics & Moral Philosophy",
+    "short_label": "Ethics",
+    "color": "#9b59b6",
+    "keywords": "ethics moral philosophy duty virtue happiness utility greatest good categorical imperative justice goodness right wrong obligation character virtue excellence practical wisdom prudence temperance courage happiness eudaimonia pleasure pain consequences moral law universal"
+  },
+  {
+    "id": 8,
+    "label": "Finance, Trade & Wealth",
+    "short_label": "Finance & Trade",
+    "color": "#1abc9c",
+    "keywords": "finance trade wealth money exchange commerce banking credit debt interest capital investment profit accumulation mercantile stock market price value gold silver coin circulation currency revenue taxation national debt public expenditure"
+  }
+]

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRISM — Knowledge Graph</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0f; color: #e0e0e0; font-family: 'SF Mono', 'Fira Code', monospace; overflow: hidden; }
+#header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,15,0.92); backdrop-filter: blur(8px); padding: 12px 24px; display: flex; align-items: center; gap: 20px; border-bottom: 1px solid #222; }
+#header h1 { font-size: 14px; font-weight: 600; color: #999; letter-spacing: 1px; text-transform: uppercase; }
+#header .stats { font-size: 12px; color: #555; }
+#controls { position: fixed; top: 50px; left: 20px; z-index: 100; display: flex; flex-direction: column; gap: 8px; }
+.ctrl-btn { background: rgba(30,30,40,0.9); border: 1px solid #333; color: #888; padding: 6px 12px; font-size: 11px; cursor: pointer; border-radius: 4px; font-family: inherit; transition: all 0.2s; }
+.ctrl-btn:hover { border-color: #666; color: #ccc; }
+.ctrl-btn.active { border-color: #e8a735; color: #e8a735; }
+#legend { position: fixed; bottom: 20px; left: 20px; z-index: 100; background: rgba(10,10,15,0.9); border: 1px solid #222; border-radius: 6px; padding: 12px 16px; font-size: 11px; max-height: calc(100vh - 80px); overflow-y: auto; }
+#legend .legend-title { font-size: 10px; font-weight: 600; color: #666; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid #222; display: flex; justify-content: space-between; align-items: center; }
+#legend .legend-title span { cursor: pointer; color: #555; font-size: 9px; text-transform: none; letter-spacing: 0; }
+#legend .legend-title span:hover { color: #e8a735; }
+#legend .item { display: flex; align-items: center; gap: 8px; margin: 4px 0; cursor: pointer; user-select: none; transition: opacity 0.2s; }
+#legend .item:hover { opacity: 1 !important; }
+#legend .item.off { opacity: 0.3; }
+#legend .item.off .dot { background: #333 !important; }
+#legend .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; transition: background 0.2s; }
+#detail { position: fixed; top: 50px; right: 20px; z-index: 100; background: rgba(10,10,15,0.95); border: 1px solid #333; border-radius: 6px; padding: 16px 20px; max-width: 340px; font-size: 12px; display: none; line-height: 1.6; }
+#detail h3 { color: #e8a735; font-size: 13px; margin-bottom: 8px; padding-right: 20px; }
+#detail .close-btn { position: absolute; top: 12px; right: 14px; cursor: pointer; color: #555; font-size: 16px; line-height: 1; transition: color 0.2s; }
+#detail .close-btn:hover { color: #e8a735; }
+#detail .type-badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; margin-bottom: 8px; }
+#detail .connections { margin-top: 10px; color: #888; }
+#detail .conn-item { color: #aaa; margin: 3px 0; cursor: pointer; }
+#detail .conn-item:hover { color: #e8a735; }
+#search { position: fixed; top: 50px; right: 20px; z-index: 101; display: none; }
+#search input { background: rgba(10,10,15,0.95); border: 1px solid #444; color: #e0e0e0; padding: 8px 14px; font-size: 12px; font-family: inherit; border-radius: 4px; width: 280px; outline: none; }
+#search input:focus { border-color: #e8a735; }
+svg { width: 100vw; height: 100vh; }
+.link { stroke-opacity: 0.3; }
+.link.contains { stroke-dasharray: none; }
+.link.sources { stroke-dasharray: 4 2; }
+.link.highlighted { stroke-opacity: 0.9; stroke-width: 2px; }
+.node circle { cursor: pointer; stroke-width: 1.5px; transition: r 0.2s; }
+.node text { font-size: 10px; fill: #888; pointer-events: none; }
+.node.domain text { font-size: 12px; fill: #bbb; font-weight: 600; }
+.node.source text { font-size: 9px; fill: #666; }
+.node.highlighted circle { stroke-width: 3px; }
+.node.dimmed circle { opacity: 0.15; }
+.node.dimmed text { opacity: 0.1; }
+.link.dimmed { stroke-opacity: 0.03; }
+.edge-label { font-size: 8px; fill: #555; pointer-events: none; display: none; }
+.edge-label.visible { display: block; }
+#detail .action-buttons { margin-top: 12px; display: flex; gap: 8px; }
+#detail .action-btn { background: rgba(232,167,53,0.1); border: 1px solid #e8a735; color: #e8a735; padding: 6px 14px; font-size: 11px; cursor: pointer; border-radius: 4px; font-family: inherit; transition: all 0.2s; flex: 1; text-align: center; }
+#detail .action-btn:hover { background: rgba(232,167,53,0.25); }
+</style>
+</head>
+<body>
+<div id="header">
+  <h1>PRISM</h1>
+  <span class="stats" id="stats"></span>
+</div>
+<div id="controls">
+  <button class="ctrl-btn" onclick="resetView()">Reset View</button>
+  <button class="ctrl-btn" onclick="toggleLabels()">Edge Labels</button>
+  <button class="ctrl-btn" onclick="toggleSearch()">Search</button>
+  <button class="ctrl-btn" onclick="toggleSources()">Toggle Sources</button>
+  <button class="ctrl-btn" onclick="filterPredictions()">Predictions</button>
+  <button class="ctrl-btn" onclick="groupByDomain()">Cluster</button>
+</div>
+<div id="legend">
+  <div class="legend-title">Domains <span id="legend-toggle-all" onclick="toggleAllDomains()">deselect all</span></div>
+  <div class="item"><div class="dot" style="background:#e8a735"></div> Domain</div>
+</div>
+<div id="detail">
+  <span class="close-btn" onclick="closeDetail()">&times;</span>
+  <h3 id="detail-title"></h3>
+  <div class="type-badge" id="detail-type"></div>
+  <div id="detail-info"></div>
+  <div class="connections" id="detail-connections"></div>
+  <div class="action-buttons" id="detail-actions" style="display:none">
+    <button class="action-btn" onclick="summariseNode()">Summarise</button>
+    <button class="action-btn" onclick="askAboutNode()">Ask a question</button>
+  </div>
+  <div class="action-buttons" id="domain-actions" style="display:none">
+    <button class="action-btn" onclick="refineDomain()">Refine label / keywords</button>
+    <button class="action-btn" onclick="reviewClusterMembers()">Review cluster members</button>
+  </div>
+</div>
+<div id="search">
+  <input type="text" id="search-input" placeholder="Search nodes..." oninput="searchNodes(this.value)">
+</div>
+<svg id="graph"></svg>
+<script>
+const graphData = {
+  "meta": {
+    "title": "PRISM — Knowledge Graph",
+    "updated": "",
+    "version": "2.0",
+    "nodeCount": 0,
+    "edgeCount": 0
+  },
+  "nodes": [],
+  "edges": []
+};
+
+const groupColors = {};
+
+function getColor(d) {
+  if (d.type === 'domain') return '#e8a735';
+  if (d.type === 'source') return '#95a5a6';
+  return groupColors[d.group] || '#666';
+}
+function getRadius(d) {
+  if (d.type === 'domain') return 14;
+  if (d.type === 'prediction') return 10;
+  if (d.type === 'source') return 6;
+  return 8;
+}
+
+const width = window.innerWidth, height = window.innerHeight;
+const svg = d3.select('#graph').attr('viewBox', [0, 0, width, height]);
+const g = svg.append('g');
+
+const zoom = d3.zoom().scaleExtent([0.1, 8]).on('zoom', (e) => g.attr('transform', e.transform));
+svg.call(zoom);
+
+let showSources = false;
+let showEdgeLabels = false;
+let clustered = false;
+
+// Domain visibility state — discover all groups dynamically
+const allGroupIds = new Set(graphData.nodes.map(n => n.group).filter(g => g != null));
+const visibleGroups = new Set(allGroupIds);
+
+function toggleDomain(group) {
+  if (visibleGroups.has(group)) {
+    visibleGroups.delete(group);
+  } else {
+    visibleGroups.add(group);
+  }
+  updateLegendUI();
+  render();
+}
+
+function toggleAllDomains() {
+  const allOn = visibleGroups.size === allGroupIds.size;
+  if (allOn) {
+    visibleGroups.clear();
+  } else {
+    allGroupIds.forEach(g => visibleGroups.add(g));
+  }
+  updateLegendUI();
+  render();
+}
+
+function updateLegendUI() {
+  document.querySelectorAll('#legend .item[data-group]').forEach(el => {
+    const g = parseInt(el.dataset.group);
+    el.classList.toggle('off', !visibleGroups.has(g));
+  });
+  const allOn = visibleGroups.size === allGroupIds.size;
+  const toggleEl = document.getElementById('legend-toggle-all');
+  if (toggleEl) toggleEl.textContent = allOn ? 'deselect all' : 'select all';
+}
+
+function activeNodes() {
+  return graphData.nodes.filter(n => {
+    if (n.type === 'source') return showSources;
+    return visibleGroups.has(n.group);
+  });
+}
+function activeEdges() {
+  const ids = new Set(activeNodes().map(n => n.id));
+  return graphData.edges.filter(e => ids.has(typeof e.source === 'object' ? e.source.id : e.source) && ids.has(typeof e.target === 'object' ? e.target.id : e.target));
+}
+
+const simulation = d3.forceSimulation()
+  .force('link', d3.forceLink().id(d => d.id).distance(d => {
+    if (d.type === 'contains') return 60;
+    if (d.type === 'sources') return 80;
+    return 100;
+  }))
+  .force('charge', d3.forceManyBody().strength(d => d.type === 'domain' ? -400 : d.type === 'source' ? -60 : -120))
+  .force('center', d3.forceCenter(width / 2, height / 2))
+  .force('collision', d3.forceCollide().radius(d => getRadius(d) + 4));
+
+let linkG = g.append('g').attr('class', 'links');
+let labelG = g.append('g').attr('class', 'edge-labels');
+let nodeG = g.append('g').attr('class', 'nodes');
+
+let linkSel, labelSel, nodeSel;
+
+function render() {
+  const nodes = activeNodes();
+  const edges = activeEdges();
+
+  linkSel = linkG.selectAll('.link').data(edges, d => (d.source.id||d.source)+'->'+( d.target.id||d.target));
+  linkSel.exit().remove();
+  linkSel = linkSel.enter().append('line')
+    .attr('class', d => 'link ' + d.type)
+    .attr('stroke', d => d.type === 'sources' ? '#555' : '#444')
+    .attr('stroke-width', d => d.type === 'contains' ? 1.2 : 0.8)
+    .merge(linkSel);
+
+  labelSel = labelG.selectAll('.edge-label').data(edges, d => (d.source.id||d.source)+'->'+( d.target.id||d.target));
+  labelSel.exit().remove();
+  labelSel = labelSel.enter().append('text')
+    .attr('class', 'edge-label' + (showEdgeLabels ? ' visible' : ''))
+    .text(d => d.type)
+    .merge(labelSel);
+
+  nodeSel = nodeG.selectAll('.node').data(nodes, d => d.id);
+  nodeSel.exit().remove();
+  const enter = nodeSel.enter().append('g')
+    .attr('class', d => 'node ' + d.type)
+    .call(d3.drag().on('start', dragStart).on('drag', dragging).on('end', dragEnd))
+    .on('click', (e, d) => selectNode(d));
+  enter.append('circle')
+    .attr('r', d => getRadius(d))
+    .attr('fill', d => getColor(d))
+    .attr('stroke', d => d3.color(getColor(d)).darker(0.5));
+  enter.append('text')
+    .attr('dx', d => getRadius(d) + 4)
+    .attr('dy', 4)
+    .text(d => d.label);
+  nodeSel = enter.merge(nodeSel);
+
+  simulation.nodes(nodes);
+  simulation.force('link').links(edges);
+  simulation.alpha(1).restart();
+}
+
+simulation.on('tick', () => {
+  if (linkSel) linkSel.attr('x1', d => d.source.x).attr('y1', d => d.source.y).attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+  if (labelSel) labelSel.attr('x', d => (d.source.x + d.target.x) / 2).attr('y', d => (d.source.y + d.target.y) / 2);
+  if (nodeSel) nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+});
+
+function dragStart(e, d) { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; }
+function dragging(e, d) { d.fx = e.x; d.fy = e.y; }
+function dragEnd(e, d) { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; }
+
+function selectNode(d) {
+  const detail = document.getElementById('detail');
+  const edges = graphData.edges;
+  const connected = new Set();
+  const connList = [];
+  edges.forEach(e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    if (sid === d.id) { connected.add(tid); connList.push({id: tid, type: e.type, dir: 'out'}); }
+    if (tid === d.id) { connected.add(sid); connList.push({id: sid, type: e.type, dir: 'in'}); }
+  });
+  connected.add(d.id);
+
+  nodeSel.classed('highlighted', n => n.id === d.id).classed('dimmed', n => !connected.has(n.id));
+  linkSel.classed('highlighted', e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    return sid === d.id || tid === d.id;
+  }).classed('dimmed', e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    return sid !== d.id && tid !== d.id;
+  });
+
+  document.getElementById('detail-title').textContent = d.label;
+  const badge = document.getElementById('detail-type');
+  badge.textContent = d.type.toUpperCase() + ' [' + d.id + ']';
+  badge.style.background = getColor(d) + '33';
+  badge.style.color = getColor(d);
+  document.getElementById('detail-info').textContent = d.type === 'domain' ? 'Group ' + d.group : 'Domain group ' + d.group;
+
+  const nodeMap = {};
+  graphData.nodes.forEach(n => nodeMap[n.id] = n);
+  const connHTML = connList.map(c => {
+    const n = nodeMap[c.id];
+    const arrow = c.dir === 'out' ? '→' : '←';
+    return `<div class="conn-item" onclick="selectNode(graphData.nodes.find(n=>n.id==='${c.id}'))">${arrow} <span style="color:${n ? getColor(n) : '#888'}">${c.type}</span> ${n ? n.label : c.id}</div>`;
+  }).join('');
+  document.getElementById('detail-connections').innerHTML = '<strong>Connections (' + connList.length + '):</strong>' + connHTML;
+  document.getElementById('detail-actions').style.display = (d.type !== 'domain') ? 'flex' : 'none';
+  document.getElementById('domain-actions').style.display = (d.type === 'domain') ? 'flex' : 'none';
+  window._selectedNode = d;
+  detail.style.display = 'block';
+}
+
+function refineDomain() {
+  const d = window._selectedNode;
+  if (!d || d.type !== 'domain') return;
+  const memberCount = graphData.edges.filter(e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    return sid === d.id;
+  }).length;
+  const prompt = 'Refine domain ' + d.id + ' (current label: "' + d.label + '", ' + memberCount + ' members). Read the cluster members via prism_core_index, propose a sharper label and keyword description, then call prism_core_domains_set to update.';
+  if (window.parent && window.parent.postMessage) {
+    window.parent.postMessage({type: 'prism-action', action: 'refine-domain', node: d, message: prompt}, '*');
+  }
+  navigator.clipboard?.writeText(prompt).catch(() => {});
+  alert('Cowork prompt copied to clipboard:\n\n' + prompt + '\n\nPaste into the Cowork prompt to refine this domain through Claude.');
+}
+
+function reviewClusterMembers() {
+  const d = window._selectedNode;
+  if (!d || d.type !== 'domain') return;
+  const members = [];
+  graphData.edges.forEach(e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    if (sid === d.id) members.push(tid);
+  });
+  const prompt = 'Review the members of domain ' + d.id + ' ("' + d.label + '"): ' + members.join(', ') + '. Surface any low-confidence members or candidates for reassignment via prism_core_tag.';
+  if (window.parent && window.parent.postMessage) {
+    window.parent.postMessage({type: 'prism-action', action: 'review-cluster', node: d, message: prompt}, '*');
+  }
+  navigator.clipboard?.writeText(prompt).catch(() => {});
+  alert('Cowork prompt copied to clipboard:\n\n' + prompt + '\n\nPaste into the Cowork prompt to review through Claude.');
+}
+
+function summariseNode() {
+  const d = window._selectedNode;
+  if (!d) return;
+  const conns = [];
+  graphData.edges.forEach(e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    if (sid === d.id || tid === d.id) conns.push(e.type + ': ' + (sid === d.id ? tid : sid));
+  });
+  const msg = 'Summarise this concept and its connections:\\n\\nNode: ' + d.label + ' (' + d.id + ')\\nType: ' + d.type + '\\nConnections: ' + conns.join(', ');
+  if (window.parent && window.parent.postMessage) {
+    window.parent.postMessage({type: 'prism-action', action: 'summarise', node: d, message: msg}, '*');
+  }
+  alert('Summarise request sent for: ' + d.label + '\\n\\nIn Cowork, this will send the request to Claude automatically.');
+}
+
+function askAboutNode() {
+  const d = window._selectedNode;
+  if (!d) return;
+  const question = prompt('Ask a question about: ' + d.label);
+  if (!question) return;
+  const msg = 'About node ' + d.label + ' (' + d.id + ', ' + d.type + '): ' + question;
+  if (window.parent && window.parent.postMessage) {
+    window.parent.postMessage({type: 'prism-action', action: 'ask', node: d, question: question, message: msg}, '*');
+  }
+  alert('Question sent about: ' + d.label + '\\n\\nIn Cowork, this will send the question to Claude automatically.');
+}
+
+function closeDetail() {
+  document.getElementById('detail').style.display = 'none';
+  if (nodeSel) nodeSel.classed('highlighted', false).classed('dimmed', false);
+  if (linkSel) linkSel.classed('highlighted', false).classed('dimmed', false);
+}
+
+function resetView() {
+  svg.transition().duration(500).call(zoom.transform, d3.zoomIdentity);
+  nodeSel.classed('highlighted', false).classed('dimmed', false);
+  linkSel.classed('highlighted', false).classed('dimmed', false);
+  document.getElementById('detail').style.display = 'none';
+  for (let i = 1; i <= 13; i++) visibleGroups.add(i);
+  updateLegendUI();
+  render();
+}
+
+function toggleLabels() {
+  showEdgeLabels = !showEdgeLabels;
+  labelSel.classed('visible', showEdgeLabels);
+  applyForceSpacing();
+  simulation.alpha(0.8).restart();
+}
+
+function applyForceSpacing() {
+  const spread = showEdgeLabels ? 1.8 : 1;
+  simulation.force('link').distance(d => {
+    if (d.type === 'contains') return 60 * spread;
+    if (d.type === 'sources') return 80 * spread;
+    return 100 * spread;
+  });
+  simulation.force('charge').strength(d => {
+    const base = d.type === 'domain' ? -400 : d.type === 'source' ? -60 : -120;
+    return base * spread;
+  });
+  simulation.force('collision').radius(d => getRadius(d) + (showEdgeLabels ? 16 : 4));
+}
+
+function toggleSearch() {
+  const s = document.getElementById('search');
+  s.style.display = s.style.display === 'none' ? 'block' : 'none';
+  if (s.style.display === 'block') document.getElementById('search-input').focus();
+}
+
+function searchNodes(q) {
+  if (!q) { nodeSel.classed('dimmed', false); linkSel.classed('dimmed', false); return; }
+  q = q.toLowerCase();
+  const matches = new Set();
+  graphData.nodes.forEach(n => { if (n.label.toLowerCase().includes(q) || n.id.toLowerCase().includes(q)) matches.add(n.id); });
+  nodeSel.classed('dimmed', d => !matches.has(d.id));
+  linkSel.classed('dimmed', true);
+}
+
+function toggleSources() {
+  showSources = !showSources;
+  render();
+}
+
+function filterPredictions() {
+  const predIds = new Set(['D_PRED', 'P01', 'P02', 'P03']);
+  graphData.edges.forEach(e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    if (predIds.has(sid)) predIds.add(tid);
+    if (predIds.has(tid)) predIds.add(sid);
+  });
+  nodeSel.classed('dimmed', d => !predIds.has(d.id));
+  linkSel.classed('dimmed', e => {
+    const sid = typeof e.source === 'object' ? e.source.id : e.source;
+    const tid = typeof e.target === 'object' ? e.target.id : e.target;
+    return !predIds.has(sid) || !predIds.has(tid);
+  });
+}
+
+function groupByDomain() {
+  clustered = !clustered;
+  if (clustered) {
+    const domainCount = 13;
+    graphData.nodes.forEach(d => {
+      if (d.type === 'domain') {
+        const angle = ((d.group - 1) / domainCount) * 2 * Math.PI;
+        d.fx = width/2 + Math.cos(angle) * 280;
+        d.fy = height/2 + Math.sin(angle) * 280;
+      }
+    });
+  } else {
+    graphData.nodes.forEach(d => { d.fx = null; d.fy = null; });
+  }
+  simulation.alpha(1).restart();
+}
+
+const domainCount = graphData.nodes.filter(n => n.type === 'domain').length;
+const conceptCount = graphData.nodes.filter(n => n.type === 'concept').length;
+document.getElementById('stats').textContent = `${domainCount} domains · ${conceptCount} concepts · ${graphData.edges.length} edges · v4.4 · Updated 2026-04-16`;
+
+render();
+</script>
+</body>
+</html>

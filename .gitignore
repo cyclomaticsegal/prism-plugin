@@ -1,0 +1,42 @@
+node_modules/
+__pycache__/
+*.pyc
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+.cache/
+.pytest_cache/
+
+# Runtime workspace container (created by bootstrap, not repo content).
+# In a real install this lives in the user-chosen workspace; if the dev runs
+# the engine from the repo root, it lands here.
+/prism/
+
+# Legacy pre-2.0 workspace files left behind in the repo root from older builds.
+# The bootstrap will migrate these into prism/ on first run, but ignore them
+# defensively so repo state stays clean while the migration is rolling out.
+/AXIOMS.md
+/domains.json
+/GRAPH.json
+/graph-explorer.html
+/brain.db
+/inbox/
+/sources/
+
+# Runtime user-extensions dir is gitignored (it's user state). The repo's
+# /extensions/ folder ships reference implementations and IS tracked.
+# /extensions/ is NOT ignored — it's part of the repo
+
+# Reference brain build artifacts (built from sources, not committed)
+reference-brain/_build/
+reference-brain/brain-reference.db
+reference-brain/GRAPH-reference.json
+
+# Packaging output
+dist/
+
+# FUSE kernel artifacts (created when a mounted file is unlinked while open;
+# transient, never repo content)
+.fuse_hidden*

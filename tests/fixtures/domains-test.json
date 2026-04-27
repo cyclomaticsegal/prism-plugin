@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "label": "Economics & Markets",
+    "short_label": "Economics",
+    "color": "#4ecdc4",
+    "keywords": "macroeconomics monetary policy fiscal policy interest rates inflation deflation bonds treasury yields GDP economic growth credit markets banking central banking sovereign debt currency liquidity financial system"
+  },
+  {
+    "id": 2,
+    "label": "Technology & AI",
+    "short_label": "Technology",
+    "color": "#ff6b6b",
+    "keywords": "artificial intelligence machine learning AI neural networks deep learning compute scaling automation transformer models LLM large language models cognitive augmentation technology software algorithms data"
+  },
+  {
+    "id": 3,
+    "label": "Energy & Infrastructure",
+    "short_label": "Energy",
+    "color": "#f7dc6f",
+    "keywords": "energy infrastructure power grid nuclear solar renewable electricity generation capacity data centers hardware physical constraints supply chain commodities natural resources oil gas pipeline transmission"
+  },
+  {
+    "id": 4,
+    "label": "Philosophy & Ethics",
+    "short_label": "Philosophy",
+    "color": "#2ecc71",
+    "keywords": "philosophy ethics morality consciousness meaning purpose human values existential psychology identity creativity culture wellbeing education learning motivation epistemology ontology metaphysics logic reasoning"
+  },
+  {
+    "id": 5,
+    "label": "Political Economy",
+    "short_label": "Political Economy",
+    "color": "#e74c3c",
+    "keywords": "political economy governance institutions democracy regulation policy geopolitics sovereignty state power inequality wealth distribution social contract legitimacy power structures government legislation law"
+  }
+]

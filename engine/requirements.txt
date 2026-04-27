@@ -1,0 +1,10 @@
+numpy
+scikit-learn
+sentence-transformers
+
+# Optional: better URL extraction for brain_ingest_url. The engine falls back
+# to a regex-based stripper if these are absent, but the extraction quality
+# improves substantially when they are present.
+requests
+beautifulsoup4
+readability-lxml

@@ -1,0 +1,13 @@
+{
+  "name": "prism",
+  "description": "PRISM — A personal knowledge base with hybrid search, knowledge graph, and interactive explorer. All workspace data lives under prism/ with prism- prefixed children.",
+  "version": "2.0.0",
+  "author": {
+    "name": "Simon Segal",
+    "url": "https://github.com/cyclomaticsegal"
+  },
+  "homepage": "https://github.com/cyclomaticsegal/prism-plugin",
+  "repository": "https://github.com/cyclomaticsegal/prism-plugin",
+  "license": "MIT",
+  "keywords": ["knowledge-base", "rag", "graph", "embeddings", "cowork", "mcp"]
+}

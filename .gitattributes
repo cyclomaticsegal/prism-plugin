@@ -1,0 +1,5 @@
+# Files that run inside the Cowork Linux VM must always use LF endings.
+# Windows clients cloning with autocrlf=true would otherwise get CRLF, which
+# breaks bash inside the VM (e.g. `set -e\r`) and confuses line-oriented tools.
+*.sh text eol=lf
+*.py text eol=lf
