@@ -14,10 +14,15 @@ Cowork starts the PRISM MCP server automatically when the plugin is enabled. The
 
 In order:
 
-1. **Show status.** Call `prism_core_stats`. Report concisely: source count, chunk count, domain count, last ingestion timestamp.
-2. **Diagnose plugin failures, not workspace failures.** If `prism_core_stats` (or any other `prism_core_*` tool) is not callable in this conversation, the MCP server did not come up. This is a plugin-level problem — direct the user to Cowork's plugin status / errors panel for diagnosis, do not invent a workspace problem. Common causes: dependency install hook failed, the user has not configured a workspace folder yet, or the server crashed at startup.
-3. **First-time setup.** If `prism_core_stats` returns `sources = 0` and `chunks = 0`, the workspace is initialised but empty — activate the `prism-starter` skill to onboard the user.
-4. **Confirm extension tools.** The MCP server has already registered the core brain tools and any extension tools loaded from `prism/prism-extensions/<ext_id>/` inside the workspace. You don't need to verify these — if a tool call fails because a tool is missing, surface it as a server config problem.
+1. **Show status.** Call `prism_core_stats`. Report concisely: source count, chunk count, domain count, last ingestion timestamp, and the `workspace` path it reports.
+2. **Diagnose plugin failures, not workspace failures.** If `prism_core_stats` (or any other `prism_core_*` tool) is not callable in this conversation, the MCP server did not come up. This is a plugin-level problem — direct the user to Cowork's plugin status / errors panel for diagnosis, do not invent a workspace problem. Common causes: dependency install hook failed, server crashed at startup.
+3. **Attach a workspace if none is attached.** If `prism_core_stats` reports a workspace ending in `_unattached` (or otherwise inside `${CLAUDE_PLUGIN_DATA}`), the user has not yet picked a host folder for their brain. Drive the attach flow:
+   - Call `mcp__cowork__request_cowork_directory` to obtain the host path of the user's mounted folder. Cowork will prompt the user to pick one if needed.
+   - Call `prism_core_attach_workspace(path)` with the returned host path.
+   - Tell the user the workspace is recorded, the brain is now bound to that folder, and they need to **start a fresh Cowork session** for it to take effect. The running daemon does not hot-reload its workspace.
+   - Don't proceed to `prism-starter` until the workspace is real (next session).
+4. **First-time setup once attached.** If the workspace is real (a user folder, not the `_unattached` default) and `prism_core_stats` reports `sources = 0` and `chunks = 0`, the brain is initialised but empty — activate the `prism-starter` skill to onboard the user.
+5. **Confirm extension tools.** The MCP server has already registered the core brain tools and any extension tools loaded from `prism/prism-extensions/<ext_id>/` inside the workspace. You don't need to verify these — if a tool call fails because a tool is missing, surface it as a server config problem.
 
 ## Retrieval guidance
 

@@ -10,7 +10,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { spawn } from "node:child_process";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -19,22 +19,56 @@ const ENGINE_DIR = join(__dirname, "..", "engine");
 const BRIDGE = join(ENGINE_DIR, "bridge.py");
 
 // Resolve the workspace folder — this is where the user's brain data
-// (prism/prism-brain.db, prism/prism-inbox/, etc.) lives. PRISM does
-// not own this directory; it's whichever folder Cowork has mounted
-// into the current session. Resolution order:
-//   1. PRISM_WORKSPACE — explicit override.
-//   2. CLAUDE_CODE_WORKSPACE_HOST_PATHS — Cowork sets this to the host
-//      paths of folders the user mounted (colon-separated; we take the
-//      first). This is the right answer in normal Cowork use.
-//   3. process.cwd() — fallback for non-Cowork hosts (Claude Code CLI,
-//      manual node invocation, tests). Inside Cowork the spawn cwd is
-//      the session's outputs/ dir, which is wrong as a brain location.
-const WORKSPACE_HOST_PATHS = process.env.CLAUDE_CODE_WORKSPACE_HOST_PATHS;
-const FIRST_HOST_PATH = WORKSPACE_HOST_PATHS
-  ? WORKSPACE_HOST_PATHS.split(":").map((p) => p.trim()).filter(Boolean)[0]
-  : null;
-const WORKSPACE =
-  process.env.PRISM_WORKSPACE || FIRST_HOST_PATH || process.cwd();
+// (prism/prism-brain.db, prism/prism-inbox/, etc.) lives. Cowork doesn't
+// expose the user's mounted-folder host path to plugin MCP servers via
+// any documented env var, so we persist the chosen workspace ourselves
+// in CLAUDE_PLUGIN_DATA/workspace.json, written by the
+// prism_core_attach_workspace tool. Resolution order:
+//   1. PRISM_WORKSPACE — explicit override (manual dev, tests).
+//   2. CLAUDE_PLUGIN_DATA/workspace.json#path — set by attach_workspace.
+//   3. CLAUDE_PLUGIN_DATA/_unattached/ — sane default when nothing has
+//      been attached yet. Brain still works, just not in the user's
+//      folder; first-run skill flow steers the user toward attaching.
+const PLUGIN_DATA = (() => {
+  if (process.env.CLAUDE_PLUGIN_DATA) return process.env.CLAUDE_PLUGIN_DATA;
+  // Derive from PRISM_PYTHON when running under Cowork's plugin loader,
+  // which sets PRISM_PYTHON=${CLAUDE_PLUGIN_DATA}/venv/bin/python3 in
+  // .mcp.json.
+  const py = process.env.PRISM_PYTHON;
+  if (py) {
+    const m = py.match(/^(.+)\/venv\/bin\/python3?$/);
+    if (m) return m[1];
+  }
+  // Fallback for tests / manual runs: use a dir alongside the plugin.
+  return join(__dirname, "..", ".prism-data");
+})();
+const WORKSPACE_CONFIG_PATH = join(PLUGIN_DATA, "workspace.json");
+
+function readAttachedWorkspace() {
+  try {
+    if (!existsSync(WORKSPACE_CONFIG_PATH)) return null;
+    const raw = readFileSync(WORKSPACE_CONFIG_PATH, "utf-8");
+    const data = JSON.parse(raw);
+    return typeof data?.path === "string" && data.path.length > 0 ? data.path : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAttachedWorkspace(path) {
+  // mkdir -p the plugin data dir if it doesn't exist yet (e.g. first run
+  // outside Cowork, where the SessionStart hook hasn't created it).
+  try { mkdirSync(PLUGIN_DATA, { recursive: true }); } catch {}
+  writeFileSync(
+    WORKSPACE_CONFIG_PATH,
+    JSON.stringify({ path, attached_at: new Date().toISOString() }, null, 2),
+  );
+}
+
+let WORKSPACE =
+  process.env.PRISM_WORKSPACE ||
+  readAttachedWorkspace() ||
+  join(PLUGIN_DATA, "_unattached");
 
 // Python interpreter for the engine. The plugin's SessionStart hook
 // installs the engine into ${CLAUDE_PLUGIN_DATA}/venv and points
@@ -330,6 +364,7 @@ const CORE_TOOL_NAMES = new Set([
   "prism_core_review_proposals",
   "prism_core_accept_proposal",
   "prism_core_reject_proposal",
+  "prism_core_attach_workspace",
 ]);
 
 function discoverExtensions() {
@@ -499,6 +534,60 @@ async function loadExtensionTools(extensions) {
 
 const server = new McpServer(
   { name: "prism", version: "2.0.0" },
+);
+
+// --- prism_core_attach_workspace ---
+// Persists the user's chosen brain location to ${CLAUDE_PLUGIN_DATA}/workspace.json.
+// Called by the prism-bootstrap skill on first run, after the skill has obtained
+// the host path (typically via the Cowork-internal mcp__cowork__request_cowork_directory
+// tool, but any host path the user supplies is acceptable). The change takes
+// effect on the next Cowork session — the daemon reads workspace at startup
+// and a v1 attach does not hot-reload.
+server.registerTool(
+  "prism_core_attach_workspace",
+  {
+    description:
+      "Attach a host folder as the PRISM workspace — the location where prism/prism-brain.db, prism/prism-inbox/, and friends will live. The path is persisted to ${CLAUDE_PLUGIN_DATA}/workspace.json and read on every subsequent Cowork session start. Tell the user to start a fresh Cowork session for the change to take effect; the running daemon does not hot-reload its workspace. Use after obtaining the host path via mcp__cowork__request_cowork_directory or by asking the user directly.",
+    inputSchema: z.object({
+      path: z
+        .string()
+        .min(1)
+        .describe("Absolute host path to the folder where the brain should live (e.g. /Users/<you>/lw/my-research-brain)."),
+    }),
+  },
+  async ({ path }) => {
+    if (!path.startsWith("/")) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            error: "Path must be absolute (start with /). Got: " + path,
+          }, null, 2),
+        }],
+      };
+    }
+    try { mkdirSync(path, { recursive: true }); } catch (e) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            error: `Cannot create or access folder at ${path}: ${e.message}`,
+          }, null, 2),
+        }],
+      };
+    }
+    writeAttachedWorkspace(path);
+    return {
+      content: [{
+        type: "text",
+        text: JSON.stringify({
+          status: "attached",
+          path,
+          note: "Workspace recorded. Start a fresh Cowork session — on next launch the brain will live in this folder. Existing brain state at the previous workspace (if any) is not migrated automatically.",
+        }, null, 2),
+      }],
+    };
+  }
 );
 
 // --- prism_core_search ---
