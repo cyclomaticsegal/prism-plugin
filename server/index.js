@@ -13,6 +13,7 @@ import { spawn } from "node:child_process";
 import { readFileSync, readdirSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { homedir } from "node:os";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ENGINE_DIR = join(__dirname, "..", "engine");
@@ -22,27 +23,19 @@ const BRIDGE = join(ENGINE_DIR, "bridge.py");
 // (prism/prism-brain.db, prism/prism-inbox/, etc.) lives. Cowork doesn't
 // expose the user's mounted-folder host path to plugin MCP servers via
 // any documented env var, so we persist the chosen workspace ourselves
-// in CLAUDE_PLUGIN_DATA/workspace.json, written by the
-// prism_core_attach_workspace tool. Resolution order:
+// to a stable host path: ~/.prism/workspace.json. (CLAUDE_PLUGIN_DATA
+// would seem natural, but in Cowork it resolves to a per-session
+// directory — workspace.json written there is invisible to the next
+// session. ~/.prism survives sessions, plugin reinstalls, and updates.)
+//
+// Resolution order:
 //   1. PRISM_WORKSPACE — explicit override (manual dev, tests).
-//   2. CLAUDE_PLUGIN_DATA/workspace.json#path — set by attach_workspace.
-//   3. CLAUDE_PLUGIN_DATA/_unattached/ — sane default when nothing has
-//      been attached yet. Brain still works, just not in the user's
-//      folder; first-run skill flow steers the user toward attaching.
-const PLUGIN_DATA = (() => {
-  if (process.env.CLAUDE_PLUGIN_DATA) return process.env.CLAUDE_PLUGIN_DATA;
-  // Derive from PRISM_PYTHON when running under Cowork's plugin loader,
-  // which sets PRISM_PYTHON=${CLAUDE_PLUGIN_DATA}/venv/bin/python3 in
-  // .mcp.json.
-  const py = process.env.PRISM_PYTHON;
-  if (py) {
-    const m = py.match(/^(.+)\/venv\/bin\/python3?$/);
-    if (m) return m[1];
-  }
-  // Fallback for tests / manual runs: use a dir alongside the plugin.
-  return join(__dirname, "..", ".prism-data");
-})();
-const WORKSPACE_CONFIG_PATH = join(PLUGIN_DATA, "workspace.json");
+//   2. ~/.prism/workspace.json#path — set by attach_workspace.
+//   3. ~/.prism/_unattached/ — sane default when nothing has been
+//      attached yet. Brain still works, just not in the user's folder;
+//      first-run skill flow steers the user toward attaching.
+const PRISM_HOME = join(homedir(), ".prism");
+const WORKSPACE_CONFIG_PATH = join(PRISM_HOME, "workspace.json");
 
 function readAttachedWorkspace() {
   try {
@@ -56,9 +49,7 @@ function readAttachedWorkspace() {
 }
 
 function writeAttachedWorkspace(path) {
-  // mkdir -p the plugin data dir if it doesn't exist yet (e.g. first run
-  // outside Cowork, where the SessionStart hook hasn't created it).
-  try { mkdirSync(PLUGIN_DATA, { recursive: true }); } catch {}
+  try { mkdirSync(PRISM_HOME, { recursive: true }); } catch {}
   writeFileSync(
     WORKSPACE_CONFIG_PATH,
     JSON.stringify({ path, attached_at: new Date().toISOString() }, null, 2),
@@ -68,7 +59,7 @@ function writeAttachedWorkspace(path) {
 let WORKSPACE =
   process.env.PRISM_WORKSPACE ||
   readAttachedWorkspace() ||
-  join(PLUGIN_DATA, "_unattached");
+  join(PRISM_HOME, "_unattached");
 
 // Python interpreter for the engine. The plugin's SessionStart hook
 // installs the engine into ${CLAUDE_PLUGIN_DATA}/venv and points

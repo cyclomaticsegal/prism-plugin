@@ -1,7 +1,7 @@
 {
   "name": "prism",
   "description": "PRISM — A personal knowledge base with hybrid search, knowledge graph, and interactive explorer. All workspace data lives under prism/ with prism- prefixed children.",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "author": {
     "name": "Simon Segal",
     "url": "https://github.com/cyclomaticsegal"
