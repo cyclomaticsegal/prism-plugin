@@ -568,13 +568,24 @@ server.registerTool(
       };
     }
     writeAttachedWorkspace(path);
+    // Hot-swap the workspace in this running session: update the
+    // module-level WORKSPACE so subsequent callBrain() requests carry
+    // the new path, and kill the daemon so the next call respawns it
+    // with the new PRISM_WORKSPACE env. No Cowork session restart
+    // needed.
+    WORKSPACE = path;
+    if (daemonProcess) {
+      try { daemonProcess.kill("SIGTERM"); } catch {}
+      // _spawnDaemon's close handler clears daemonProcess and
+      // daemonReadyPromise; in-flight requests reject with _retryable.
+    }
     return {
       content: [{
         type: "text",
         text: JSON.stringify({
           status: "attached",
           path,
-          note: "Workspace recorded. Start a fresh Cowork session — on next launch the brain will live in this folder. Existing brain state at the previous workspace (if any) is not migrated automatically.",
+          note: "Workspace bound. The daemon has been signalled to restart with the new workspace; the next prism_core_* tool call in this conversation will already see the new brain. No Cowork session restart needed. Existing brain state at the previous workspace (if any) is not migrated automatically.",
         }, null, 2),
       }],
     };
