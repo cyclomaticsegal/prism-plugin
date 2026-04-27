@@ -20,13 +20,21 @@ const BRIDGE = join(ENGINE_DIR, "bridge.py");
 
 // Resolve the workspace folder — this is where the user's brain data
 // (prism/prism-brain.db, prism/prism-inbox/, etc.) lives. PRISM does
-// not own this directory; it's whichever folder the user happens to
-// have Cowork rooted in for the current session. PRISM_WORKSPACE wins
-// if explicitly set; otherwise we fall back to the MCP server's spawn
-// cwd, which Cowork sets to the session's working folder. This is what
-// makes "one plugin, N independent brains" work: open Cowork against a
-// different folder, get a different brain.
-const WORKSPACE = process.env.PRISM_WORKSPACE || process.cwd();
+// not own this directory; it's whichever folder Cowork has mounted
+// into the current session. Resolution order:
+//   1. PRISM_WORKSPACE — explicit override.
+//   2. CLAUDE_CODE_WORKSPACE_HOST_PATHS — Cowork sets this to the host
+//      paths of folders the user mounted (colon-separated; we take the
+//      first). This is the right answer in normal Cowork use.
+//   3. process.cwd() — fallback for non-Cowork hosts (Claude Code CLI,
+//      manual node invocation, tests). Inside Cowork the spawn cwd is
+//      the session's outputs/ dir, which is wrong as a brain location.
+const WORKSPACE_HOST_PATHS = process.env.CLAUDE_CODE_WORKSPACE_HOST_PATHS;
+const FIRST_HOST_PATH = WORKSPACE_HOST_PATHS
+  ? WORKSPACE_HOST_PATHS.split(":").map((p) => p.trim()).filter(Boolean)[0]
+  : null;
+const WORKSPACE =
+  process.env.PRISM_WORKSPACE || FIRST_HOST_PATH || process.cwd();
 
 // Python interpreter for the engine. The plugin's SessionStart hook
 // installs the engine into ${CLAUDE_PLUGIN_DATA}/venv and points
