@@ -38,6 +38,20 @@ if ! diff -q "$SRC_PKG" "$DST_PKG" >/dev/null 2>&1; then
   fi
 fi
 
+# ---- ESM resolution shim -----------------------------------------------------
+# Node's ESM loader does not honour NODE_PATH for bare specifiers — the only
+# resolution path it walks is "node_modules/" siblings up from the importing
+# file. server/index.js uses ESM imports, so we must surface the data-dir
+# node_modules next to it. A symlink is enough: it survives plugin updates
+# (the next session re-creates it) and weighs nothing on disk.
+SERVER_LINK="$ROOT/server/node_modules"
+if [ -L "$SERVER_LINK" ]; then
+  rm -f "$SERVER_LINK"
+elif [ -e "$SERVER_LINK" ]; then
+  rm -rf "$SERVER_LINK"
+fi
+ln -s "$DATA/node_modules" "$SERVER_LINK"
+
 # ---- Python deps (in a venv inside DATA) ------------------------------------
 VENV="$DATA/venv"
 SRC_REQ="$ROOT/engine/requirements.txt"

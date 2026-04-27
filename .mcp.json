@@ -4,7 +4,6 @@
       "command": "node",
       "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.js"],
       "env": {
-        "NODE_PATH": "${CLAUDE_PLUGIN_DATA}/node_modules",
         "PRISM_PYTHON": "${CLAUDE_PLUGIN_DATA}/venv/bin/python3"
       }
     }
