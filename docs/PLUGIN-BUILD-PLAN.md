@@ -17,7 +17,15 @@ prism-plugin/
 ├── README.md                         # User-facing readme (install, multi-modal ingestion)
 ├── LICENSE                           # MIT
 ├── .gitignore                        # node_modules, __pycache__, *.db, .env, runtime workspace files
-├── manifest.json                     # Plug-in manifest (name, version, entry point, skills, 22 core tools)
+├── .claude-plugin/
+│   ├── plugin.json                   # Plug-in manifest (Claude Code schema — name, version, metadata)
+│   └── marketplace.json              # One-plugin marketplace listing (`cyclomaticsegal`)
+├── .mcp.json                         # MCP server registration (PRISM as a stdio server)
+├── hooks/
+│   └── hooks.json                    # SessionStart hook → scripts/install-deps.sh
+├── scripts/
+│   ├── install-deps.sh               # Idempotent dep install into ${CLAUDE_PLUGIN_DATA} + node_modules symlink
+│   └── package.sh                    # Tarball packaging (legacy distribution path)
 │
 ├── server/                           # MCP Server
 │   ├── index.js                      # Registers core tools, discovers extensions, exposes the restricted brain API
@@ -27,7 +35,7 @@ prism-plugin/
 ├── engine/                           # Core engine
 │   ├── brain.py                      # Engine: ingest, search, graph, classify, projection regen, domains/axioms CRUD
 │   ├── bridge.py                     # JSON-over-stdio bridge between MCP server (Node) and brain.py (Python)
-│   ├── bootstrap.sh                  # Session startup: install Python deps
+│   ├── bootstrap.sh                  # Standalone Python-only deps script (kept for manual use)
 │   └── requirements.txt              # Python deps (numpy, scikit-learn, sentence-transformers, optional URL deps)
 │
 ├── templates/                        # Runtime template (only the explorer template ships now)
@@ -106,7 +114,7 @@ prism-plugin/
 
 The bootstrap **does not** copy any starter template — there is no `domains-starter.json` or `AXIOMS-template.md` in the repo any more. Domains and axioms emerge from ingestion + conversation; the projection regenerates after every revision.
 
-### Core MCP tools (manifest.json — 22)
+### Core MCP tools (registered by `server/index.js` — 22)
 
 ```
 prism_core_search        prism_core_ingest        prism_core_inbox         prism_core_ingest_url

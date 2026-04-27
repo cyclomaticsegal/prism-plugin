@@ -42,14 +42,18 @@ There are two supported install paths today: marketplace install (everyday users
 
 ### Path 1 — From a marketplace (recommended)
 
-This repository is itself a one-plugin marketplace named `cyclomaticsegal`. From inside Cowork:
+This repository is itself a one-plugin marketplace. To install in Cowork:
 
-```text
-/plugin marketplace add cyclomaticsegal/prism-plugin
-/plugin install prism@cyclomaticsegal
-```
+1. Open Claude Desktop → Cowork.
+2. **Customize → Browse plugins → Add custom marketplace** (or the equivalent UI affordance for adding a non-official marketplace).
+3. Paste the GitHub URL: `https://github.com/cyclomaticsegal/prism-plugin`
+4. Find **PRISM** in the listing and install it.
 
-Your **workspace folder is whichever folder Cowork is rooted in for the current session.** PRISM does not ask you to pick one — it uses the session's working directory and creates a `prism/` subfolder inside it on first ingest. To start a new brain, just open Cowork against a different folder; to come back to an existing one, open Cowork against its folder. One plugin, N independent brains.
+Cowork derives the marketplace identifier from the GitHub repo path, so the installed plugin appears as `prism@prism-plugin` (not `prism@cyclomaticsegal` — the `name` in `marketplace.json` is overridden by the source path).
+
+> The Claude Code CLI form `/plugin marketplace add cyclomaticsegal/prism-plugin` followed by `/plugin install prism@prism-plugin` works on the standalone CLI but is not currently accepted as a slash command inside Cowork (Cowork resolves `/plugin` as a skill name and reports "unknown skill"). Use the UI flow.
+
+Your **workspace folder is whichever folder Cowork is rooted in for the current session.** PRISM does not ask you to pick one — it uses the session's working directory and creates a `prism/` subfolder inside it on first ingest. To start a new brain, open Cowork against a different folder; to come back to an existing one, open Cowork against its folder. One plugin, N independent brains.
 
 To begin using PRISM, drop something into `prism/prism-inbox/` and ask Claude to ingest it.
 
@@ -65,14 +69,9 @@ For working on the plugin itself, or for running an unreleased branch:
 git clone https://github.com/cyclomaticsegal/prism-plugin.git
 ```
 
-Then in Cowork, point at the local checkout and install:
+Then in Cowork's plugin UI, use the same **Add custom marketplace** affordance and paste the absolute path to the local checkout instead of a GitHub URL. The plugin appears under the same `prism@prism-plugin` identifier (Cowork uses the directory basename as the marketplace name when adding from a local path).
 
-```text
-/plugin marketplace add /absolute/path/to/prism-plugin
-/plugin install prism@cyclomaticsegal
-```
-
-Pull new changes with `git pull` and refresh the marketplace with `/plugin marketplace update cyclomaticsegal`.
+Pull new changes with `git pull` and refresh the marketplace from the same UI panel.
 
 ### Dependencies — auto vs manual
 
@@ -84,19 +83,34 @@ To opt out (offline installs, locked dependency versions, debugging), set:
 PRISM_AUTO_BOOTSTRAP=0
 ```
 
-…and install the dependencies yourself before starting the session:
+…and install the dependencies yourself before starting the session.
+
+The exact `${CLAUDE_PLUGIN_DATA}` path Cowork uses for PRISM varies by install method, so locate it on disk first:
 
 ```bash
-# Python — requires Python 3.8+
-python3 -m venv "$HOME/.claude/plugins/data/prism-cyclomaticsegal/venv"
-"$HOME/.claude/plugins/data/prism-cyclomaticsegal/venv/bin/pip" install -r engine/requirements.txt
-
-# Node — requires Node.js 18+
-cd "$HOME/.claude/plugins/data/prism-cyclomaticsegal" && \
-  cp <plugin-root>/server/package.json . && npm install
+# macOS — find the data dir Cowork chose for PRISM (usually ends in 'prism-inline' or 'prism-prism-plugin')
+find "$HOME/Library/Application Support/Claude" -type d -name 'prism-*' 2>/dev/null | grep plugins/data
 ```
 
-The exact `${CLAUDE_PLUGIN_DATA}` path is `~/.claude/plugins/data/<plugin-id>/` where `<plugin-id>` is the plugin name plus marketplace name with non-alphanumerics replaced by `-` (so `prism-cyclomaticsegal`).
+Then install both stacks into that directory:
+
+```bash
+PRISM_DATA=/path/from/the/find/above
+
+# Python — requires Python 3.8+
+python3 -m venv "$PRISM_DATA/venv"
+"$PRISM_DATA/venv/bin/pip" install -r <plugin-root>/engine/requirements.txt
+
+# Node — requires Node.js 18+
+cp <plugin-root>/server/package.json "$PRISM_DATA/"
+(cd "$PRISM_DATA" && npm install)
+
+# ESM resolution shim: Node's ESM loader doesn't honour NODE_PATH, so the
+# server expects node_modules next to itself. Symlink, don't copy.
+ln -sfn "$PRISM_DATA/node_modules" "<plugin-root>/server/node_modules"
+```
+
+Replace `<plugin-root>` with the directory containing `server/` and `engine/` — the auto-bootstrap hook normally derives this from `${CLAUDE_PLUGIN_ROOT}`. Note the trailing `ln -sfn` step: without it the MCP server crashes at startup with `Cannot find package '@modelcontextprotocol/sdk'`, even though the package is installed correctly.
 
 ### What happens on first launch
 
